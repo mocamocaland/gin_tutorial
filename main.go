@@ -2,33 +2,72 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
+	"log"
 	"net/http"
+	"time"
 )
 
-var secrets = gin.H{
-	"foo":    gin.H{"email": "foo@bar.com", "phone": "123456"},
-	"austin": gin.H{"email": "austin@example.com", "phone": "666"},
-	"lena":   gin.H{"email": "lena@guapa.com", "phone": "523443"},
+var (
+	g errgroup.Group
+)
+
+func router01() http.Handler {
+	e := gin.New()
+	e.Use(gin.Recovery())
+	e.GET("/", func(c *gin.Context) {
+		c.JSON(
+			http.StatusOK,
+			gin.H{
+				"code":  http.StatusOK,
+				"error": "Welcome server 01",
+			},
+		)
+	})
+
+	return e
+}
+
+func router02() http.Handler {
+	e := gin.New()
+	e.Use(gin.Recovery())
+	e.GET("/", func(c *gin.Context) {
+		c.JSON(
+			http.StatusOK,
+			gin.H{
+				"code":  http.StatusOK,
+				"error": "Welcome sever 02",
+			},
+		)
+	})
+
+	return e
 }
 
 func main() {
-	r := gin.Default()
+	server01 := &http.Server{
+		Addr:         ":8080",
+		Handler:      router01(),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
 
-	authorized := r.Group("/admin", gin.BasicAuth(gin.Accounts{
-		"foo":    "bar",
-		"austin": "1234",
-		"lena":   "hello2",
-		"manu":   "4321",
-	}))
+	server02 := &http.Server{
+		Addr:         ":8081",
+		Handler:      router02(),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
 
-	authorized.GET("/secrets", func(c *gin.Context) {
-		user := c.MustGet(gin.AuthUserKey).(string)
-		if secret, ok := secrets[user]; ok {
-			c.JSON(http.StatusOK, gin.H{"user": user, "secret": secret})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"user": user, "secret": "NO SECRET :("})
-		}
+	g.Go(func() error {
+		return server01.ListenAndServe()
 	})
 
-	r.Run(":8080")
+	g.Go(func() error {
+		return server02.ListenAndServe()
+	})
+
+	if err := g.Wait(); err != nil {
+		log.Fatal(err)
+	}
 }
