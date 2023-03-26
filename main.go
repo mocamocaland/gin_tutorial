@@ -1,10 +1,12 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 var secrets = gin.H{
@@ -20,9 +22,6 @@ func main() {
 	gin.DefaultWriter = io.MultiWriter(f)
 
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.String(200, "pong")
-	})
 
 	authorized := r.Group("/admin", gin.BasicAuth(gin.Accounts{
 		"foo":    "bar",
@@ -30,6 +29,7 @@ func main() {
 		"lena":   "hello2",
 		"manu":   "4321",
 	}))
+	fmt.Println("test")
 
 	authorized.GET("/secrets", func(c *gin.Context) {
 		user := c.MustGet(gin.AuthUserKey).(string)
